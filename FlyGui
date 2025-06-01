@@ -1,0 +1,277 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+local character = player.Character or player.CharacterAdded:Wait()
+local HRP = character:WaitForChild("HumanoidRootPart")
+
+local flying = false
+local BodyGyro, BodyVelocity
+local speed = 50 
+local spinSpeed = 2 
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "FlyGUI"
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+local SliderFrame = Instance.new("Frame", ScreenGui)
+SliderFrame.Position = UDim2.new(0.1, 0, 0.8, 0)
+SliderFrame.Size = UDim2.new(0, 220, 0, 60)
+SliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+SliderFrame.BackgroundTransparency = 0.3
+local sliderCorner = Instance.new("UICorner", SliderFrame)
+sliderCorner.CornerRadius = UDim.new(0, 8)
+
+local SpeedLabel = Instance.new("TextLabel", SliderFrame)
+SpeedLabel.Size = UDim2.new(1, 0, 0.4, 0)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.Text = "Speed: " .. speed
+SpeedLabel.TextColor3 = Color3.new(1, 1, 1)
+SpeedLabel.TextScaled = true
+SpeedLabel.Font = Enum.Font.SourceSansBold
+
+local SliderBar = Instance.new("Frame", SliderFrame)
+SliderBar.Position = UDim2.new(0.05, 0, 0.55, 0)
+SliderBar.Size = UDim2.new(0.9, 0, 0, 10)
+SliderBar.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+SliderBar.BorderSizePixel = 0
+local sliderBarCorner = Instance.new("UICorner", SliderBar)
+sliderBarCorner.CornerRadius = UDim.new(0, 4)
+
+local SliderHandle = Instance.new("Frame", SliderBar)
+SliderHandle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+SliderHandle.Size = UDim2.new(0, 10, 1, 0)
+SliderHandle.AnchorPoint = Vector2.new(0.5, 0)
+SliderHandle.Position = UDim2.new(0.5, 0, 0, 0)
+SliderHandle.BorderSizePixel = 0
+local handleCorner = Instance.new("UICorner", SliderHandle)
+handleCorner.CornerRadius = UDim.new(0, 4)
+
+local sliderDragging = false
+
+local function updateSpeedFromSlider(inputX)
+    local sliderAbsolutePos = SliderBar.AbsolutePosition.X
+    local sliderWidth = SliderBar.AbsoluteSize.X
+    local relativePos = math.clamp(inputX - sliderAbsolutePos, 0, sliderWidth)
+    local percent = relativePos / sliderWidth
+    speed = math.floor(1 + (percent * 100)) 
+    SpeedLabel.Text = "Speed: " .. speed
+    SliderHandle.Position = UDim2.new(percent, 0, 0, 0)
+end
+
+SliderBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        sliderDragging = true
+        updateSpeedFromSlider(input.Position.X)
+    end
+end)
+
+SliderBar.InputChanged:Connect(function(input)
+    if sliderDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        updateSpeedFromSlider(input.Position.X)
+    end
+end)
+
+SliderBar.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        sliderDragging = false
+    end
+end)
+
+local SpinSliderFrame = Instance.new("Frame", ScreenGui)
+SpinSliderFrame.Position = UDim2.new(0.1, 0, 0.9, 0)
+SpinSliderFrame.Size = UDim2.new(0, 220, 0, 60)
+SpinSliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+SpinSliderFrame.BackgroundTransparency = 0.3
+local spinSliderCorner = Instance.new("UICorner", SpinSliderFrame)
+spinSliderCorner.CornerRadius = UDim.new(0, 8)
+
+local SpinSpeedLabel = Instance.new("TextLabel", SpinSliderFrame)
+SpinSpeedLabel.Size = UDim2.new(1, 0, 0.4, 0)
+SpinSpeedLabel.BackgroundTransparency = 1
+SpinSpeedLabel.Text = "Spin Duration: " .. spinSpeed .. " s"
+SpinSpeedLabel.TextColor3 = Color3.new(1, 1, 1)
+SpinSpeedLabel.TextScaled = true
+SpinSpeedLabel.Font = Enum.Font.SourceSansBold
+
+local SpinSliderBar = Instance.new("Frame", SpinSliderFrame)
+SpinSliderBar.Position = UDim2.new(0.05, 0, 0.55, 0)
+SpinSliderBar.Size = UDim2.new(0.9, 0, 0, 10)
+SpinSliderBar.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+SpinSliderBar.BorderSizePixel = 0
+local spinSliderBarCorner = Instance.new("UICorner", SpinSliderBar)
+spinSliderBarCorner.CornerRadius = UDim.new(0, 4)
+
+local SpinSliderHandle = Instance.new("Frame", SpinSliderBar)
+SpinSliderHandle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+SpinSliderHandle.Size = UDim2.new(0, 10, 1, 0)
+SpinSliderHandle.AnchorPoint = Vector2.new(0.5, 0)
+SpinSliderHandle.Position = UDim2.new(0.5, 0, 0, 0)
+SpinSliderHandle.BorderSizePixel = 0
+local spinHandleCorner = Instance.new("UICorner", SpinSliderHandle)
+spinHandleCorner.CornerRadius = UDim.new(0, 4)
+
+local spinSliderDragging = false
+
+local function updateSpinSpeedFromSlider(inputX)
+    local sliderAbsolutePos = SpinSliderBar.AbsolutePosition.X
+    local sliderWidth = SpinSliderBar.AbsoluteSize.X
+    local relativePos = math.clamp(inputX - sliderAbsolutePos, 0, sliderWidth)
+    local percent = relativePos / sliderWidth
+    local minDuration = 0.5
+    local maxDuration = 5
+    spinSpeed = math.floor(((maxDuration - minDuration) * (1 - percent) + minDuration) * 100) / 100
+    SpinSpeedLabel.Text = "Spin Duration: " .. spinSpeed .. " s"
+    SpinSliderHandle.Position = UDim2.new(percent, 0, 0, 0)
+end
+
+SpinSliderBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        spinSliderDragging = true
+        updateSpinSpeedFromSlider(input.Position.X)
+    end
+end)
+
+SpinSliderBar.InputChanged:Connect(function(input)
+    if spinSliderDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        updateSpinSpeedFromSlider(input.Position.X)
+    end
+end)
+
+SpinSliderBar.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        spinSliderDragging = false
+    end
+end)
+
+local ButtonFrame = Instance.new("Frame", ScreenGui)
+ButtonFrame.Position = UDim2.new(0.1, 0, 0.65, 0)
+ButtonFrame.Size = UDim2.new(0, 330, 0, 60)
+ButtonFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+ButtonFrame.BackgroundTransparency = 0.3
+local buttonFrameCorner = Instance.new("UICorner", ButtonFrame)
+buttonFrameCorner.CornerRadius = UDim.new(0, 8)
+
+local startFlyButton = Instance.new("TextButton", ButtonFrame)
+startFlyButton.Name = "StartFlyButton"
+startFlyButton.Size = UDim2.new(0, 100, 0, 50)
+startFlyButton.Position = UDim2.new(0, 10, 0, 5)
+startFlyButton.Text = "Start Fly"
+startFlyButton.BackgroundColor3 = Color3.fromRGB(70, 130, 180)  -- Steel Blue
+startFlyButton.TextColor3 = Color3.new(1, 1, 1)
+startFlyButton.Font = Enum.Font.SourceSans
+startFlyButton.TextScaled = true
+local startFlyCorner = Instance.new("UICorner", startFlyButton)
+startFlyCorner.CornerRadius = UDim.new(0, 6)
+
+local stopFlyButton = Instance.new("TextButton", ButtonFrame)
+stopFlyButton.Name = "StopFlyButton"
+stopFlyButton.Size = UDim2.new(0, 100, 0, 50)
+stopFlyButton.Position = UDim2.new(0, 120, 0, 5)
+stopFlyButton.Text = "Stop Fly"
+stopFlyButton.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
+stopFlyButton.TextColor3 = Color3.new(1, 1, 1)
+stopFlyButton.Font = Enum.Font.SourceSans
+stopFlyButton.TextScaled = true
+local stopFlyCorner = Instance.new("UICorner", stopFlyButton)
+stopFlyCorner.CornerRadius = UDim.new(0, 6)
+
+local spinButton = Instance.new("TextButton", ButtonFrame)
+spinButton.Name = "SpinButton"
+spinButton.Size = UDim2.new(0, 100, 0, 50)
+spinButton.Position = UDim2.new(0, 230, 0, 5)
+spinButton.Text = "Spin"
+spinButton.BackgroundColor3 = Color3.fromRGB(34, 139, 34)
+spinButton.TextColor3 = Color3.new(1, 1, 1)
+spinButton.Font = Enum.Font.SourceSans
+spinButton.TextScaled = true
+local spinCorner = Instance.new("UICorner", spinButton)
+spinCorner.CornerRadius = UDim.new(0, 6)
+
+local function startFlying()
+    if flying then return end
+    flying = true
+
+    BodyGyro = Instance.new("BodyGyro", HRP)
+    BodyGyro.P = 9e4
+    BodyGyro.MaxTorque = Vector3.new(9e4, 9e4, 9e4)
+    BodyGyro.CFrame = workspace.CurrentCamera.CFrame
+
+    BodyVelocity = Instance.new("BodyVelocity", HRP)
+    BodyVelocity.MaxForce = Vector3.new(9e4, 9e4, 9e4)
+    BodyVelocity.Velocity = Vector3.new(0, 0, 0)
+
+    local moveDirection = Vector3.new()
+
+    RunService:BindToRenderStep("FlyStep", Enum.RenderPriority.Character.Value, function()
+        local cam = workspace.CurrentCamera
+        local forward = cam.CFrame.LookVector
+        local right = cam.CFrame.RightVector
+        local inputDirection = Vector3.new()
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            inputDirection = inputDirection + forward
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            inputDirection = inputDirection - forward
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            inputDirection = inputDirection - right
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            inputDirection = inputDirection + right
+        end
+
+        if inputDirection.Magnitude > 0 then
+            moveDirection = inputDirection.Unit
+        else
+            moveDirection = Vector3.new()
+        end
+
+        BodyGyro.CFrame = workspace.CurrentCamera.CFrame
+        BodyVelocity.Velocity = moveDirection * speed
+    end)
+end
+
+local function stopFlying()
+    if not flying then return end
+    flying = false
+    if BodyGyro then BodyGyro:Destroy() end
+    if BodyVelocity then BodyVelocity:Destroy() end
+    RunService:UnbindFromRenderStep("FlyStep")
+end
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.E then
+        if not flying then
+            startFlying()
+        else
+            stopFlying()
+        end
+    end
+end)
+spinButton.MouseButton1Click:Connect(function()
+    local duration = spinSpeed 
+    local totalRotation = math.rad(360)
+    local elapsed = 0
+    local connection
+
+    connection = RunService.RenderStepped:Connect(function(delta)
+        elapsed = elapsed + delta
+        local rotationThisFrame = totalRotation * (delta / duration)
+        HRP.CFrame = HRP.CFrame * CFrame.Angles(0, rotationThisFrame, 0)
+
+        if elapsed >= duration then
+            connection:Disconnect()
+        end
+    end)
+end)
+
+startFlyButton.MouseButton1Click:Connect(function()
+    startFlying()
+end)
+
+stopFlyButton.MouseButton1Click:Connect(function()
+    stopFlying()
+end)
+
+warn("the script is outdated make sure to check out the v5")
